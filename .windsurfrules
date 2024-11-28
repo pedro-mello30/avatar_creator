@@ -1,0 +1,20 @@
+<purpouse>
+    We are creating a AI-Powered influencer platform.
+    That will allow users to create and manage their own influencers videos.
+    The influencers will be able to create engaging videos for the users
+    Transforming the content into a video.
+    
+</purpouse>
+
+
+
+<instructions>
+    <instruction>will have a landing page</instruction>
+    <instruction>will have a login page</instruction>
+    <instruction>will have a signup page</instruction>
+    <instruction>will have a charge page</instruction>
+    <instruction>will have a dashboard page</instruction>
+    <instruction>will have a video creation page</instruction>
+    <instruction>We are use HeyGen API to create the video</instruction>
+</instructions>
+
