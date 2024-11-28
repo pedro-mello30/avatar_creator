@@ -1,21 +1,37 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+
+interface Props {
+  videoId: string;
+}
 
 interface VideoStatus {
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  url?: string;
+  video_id: string;
+  status: 'processing' | 'completed' | 'failed';
+  video_title: string;
+  created_at: number;
+  type: string;
+  video_url?: string;
+  thumbnail_url?: string;
+  gif_url?: string;
   error?: string;
 }
 
-export default function VideoStatusClient({ videoId }: { videoId: string }) {
+export default function VideoStatusClient({ videoId }: Props) {
   const [status, setStatus] = useState<VideoStatus | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
+    if (!videoId) {
+      setError('No video ID provided');
+      setLoading(false);
+      return;
+    }
+
     const checkStatus = async () => {
       try {
         const response = await fetch(`/api/video-status/${videoId}`);
@@ -26,14 +42,14 @@ export default function VideoStatusClient({ videoId }: { videoId: string }) {
         }
 
         setStatus(data);
-        setLoading(false);
 
-        // If still processing, check again in 5 seconds
-        if (data.status === 'pending' || data.status === 'processing') {
-          setTimeout(() => checkStatus(), 5000);
+        // If still processing, poll again in 5 seconds
+        if (data.status === 'processing') {
+          setTimeout(checkStatus, 5000);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch video status');
+      } finally {
         setLoading(false);
       }
     };
@@ -41,39 +57,36 @@ export default function VideoStatusClient({ videoId }: { videoId: string }) {
     checkStatus();
   }, [videoId]);
 
-  const handleBack = () => {
-    router.push('/create-video');
+  const handleBackClick = () => {
+    router.push('/videos');
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-white shadow sm:rounded-lg p-6">
-            <div className="animate-pulse flex flex-col items-center">
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp * 1000).toLocaleString();
+  };
 
   if (error) {
     return (
       <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <div className="bg-white shadow sm:rounded-lg p-6">
             <div className="text-center">
               <h3 className="text-lg font-medium text-red-600 mb-2">Error</h3>
               <p className="text-gray-500 mb-4">{error}</p>
-              <button
-                onClick={handleBack}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Back to Video Creation
-              </button>
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Retry
+                </button>
+                <button
+                  onClick={handleBackClick}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Back to Videos
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -83,62 +96,94 @@ export default function VideoStatusClient({ videoId }: { videoId: string }) {
 
   return (
     <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white shadow sm:rounded-lg p-6">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Video Status</h2>
-            
-            {status?.status === 'completed' && status.url && (
-              <div className="space-y-4">
-                <div className="aspect-w-16 aspect-h-9">
-                  <video 
-                    src={status.url} 
-                    controls 
-                    className="rounded-lg shadow-lg w-full"
-                  />
-                </div>
-                <p className="text-green-600 font-medium">Video generation completed!</p>
-                <div className="space-x-4">
-                  <a
-                    href={status.url}
-                    download
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                  >
-                    Download Video
-                  </a>
-                  <button
-                    onClick={handleBack}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    Create Another Video
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {(status?.status === 'pending' || status?.status === 'processing') && (
-              <div>
-                <div className="flex justify-center mb-4">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-                </div>
-                <p className="text-gray-600">
-                  {status.status === 'pending' ? 'Preparing to generate your video...' : 'Generating your video...'}
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white shadow sm:rounded-lg overflow-hidden">
+          <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Video Status</h2>
+              {status && (
+                <p className="mt-1 text-sm text-gray-500">
+                  {status.video_title}
                 </p>
-                <p className="text-sm text-gray-500 mt-2">This may take a few minutes</p>
-              </div>
-            )}
+              )}
+            </div>
+            <button
+              onClick={handleBackClick}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Back to Videos
+            </button>
+          </div>
 
-            {status?.status === 'failed' && (
-              <div>
-                <p className="text-red-600 mb-4">
-                  {status.error || 'Failed to generate video'}
-                </p>
-                <button
-                  onClick={handleBack}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Try Again
-                </button>
+          <div className="border-t border-gray-200">
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              </div>
+            ) : status ? (
+              <div className="p-6">
+                <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Status</dt>
+                    <dd className="mt-1">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          status.status === 'completed'
+                            ? 'bg-green-100 text-green-800'
+                            : status.status === 'processing'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {status.status}
+                      </span>
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Created At</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {formatDate(status.created_at)}
+                    </dd>
+                  </div>
+
+                  {status.video_url && (
+                    <div className="sm:col-span-2">
+                      <dt className="text-sm font-medium text-gray-500">Video</dt>
+                      <dd className="mt-1">
+                        <video
+                          controls
+                          className="w-full rounded-lg shadow-sm"
+                          src={status.video_url}
+                        />
+                      </dd>
+                    </div>
+                  )}
+
+                  {status.thumbnail_url && (
+                    <div className="sm:col-span-2">
+                      <dt className="text-sm font-medium text-gray-500">Thumbnail</dt>
+                      <dd className="mt-1">
+                        <img
+                          src={status.thumbnail_url}
+                          alt="Video thumbnail"
+                          className="w-full rounded-lg shadow-sm"
+                        />
+                      </dd>
+                    </div>
+                  )}
+
+                  {status.error && (
+                    <div className="sm:col-span-2">
+                      <dt className="text-sm font-medium text-red-500">Error</dt>
+                      <dd className="mt-1 text-sm text-red-700">{status.error}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No status information available</p>
               </div>
             )}
           </div>
